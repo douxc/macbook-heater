@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MacBook 暖手宝</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0a0a0a; overflow: hidden; color: #fff; font-family: sans-serif; }
+        canvas { filter: blur(4px) contrast(1.2); mix-blend-mode: screen; }
+        .controls { backdrop-filter: blur(10px); background: rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen">
+
+    <canvas id="fireCanvas" class="absolute inset-0 w-full h-full"></canvas>
+
+    <div class="controls relative z-10 p-8 rounded-3xl border border-white/10 text-center flex flex-col gap-6 shadow-2xl max-w-sm">
+        <header>
+            <h1 class="text-2xl font-light tracking-widest text-orange-200">MACBOOK HEATER</h1>
+            <p class="text-[11px] text-orange-100/60 mt-2 leading-relaxed text-left">
+                设计初衷：针对 MacBook Pro 及 MacBook Air 铝合金机身在冬季冰冷的触感，通过调动 CPU 负载产生热能以提升机身温度，改善使用时的“冰手”体验。
+            </p>
+        </header>
+        
+        <div class="flex flex-col gap-2">
+            <span class="text-xs uppercase tracking-tighter text-gray-400">当前火力强度</span>
+            <div id="intensityVal" class="text-6xl font-bold font-mono text-orange-500">0</div>
+        </div>
+
+        <div class="flex flex-col gap-1 my-1">
+            <span class="text-[10px] uppercase tracking-widest text-gray-500">剩余燃烧时间</span>
+            <div id="timerVal" class="text-xl font-mono text-gray-300">05:00</div>
+        </div>
+
+        <div class="flex gap-4 justify-center">
+            <button onclick="changeIntensity(-1)" class="w-16 h-16 rounded-full border border-white/20 hover:bg-white/10 transition-all flex items-center justify-center text-2xl active:scale-90">－</button>
+            <button onclick="changeIntensity(1)" class="w-16 h-16 rounded-full border border-orange-500/50 bg-orange-500/10 hover:bg-orange-500/20 transition-all flex items-center justify-center text-2xl active:scale-90 text-orange-500">＋</button>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <p class="text-[10px] text-gray-500 leading-relaxed mx-auto text-left">
+                线性负载调节已启用。建议连接电源以获得最佳加热效率。
+            </p>
+            <p class="text-[10px] text-red-400/80 font-medium leading-relaxed mx-auto border-t border-white/5 pt-2">
+                注意：这本质上是一种资源浪费，请谨慎使用。
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('fireCanvas');
+        const ctx = canvas.getContext('2d');
+        const intensityDisplay = document.getElementById('intensityVal');
+        const timerDisplay = document.getElementById('timerVal');
+        
+        let width, height;
+        let intensity = 0;
+        let particles = [];
+        const maxIntensity = 10;
+        const maxParticleCount = 600; 
+
+        const DEFAULT_SECONDS = 300; 
+        let timeLeft = DEFAULT_SECONDS;
+        let countdownInterval = null;
+        
+        const workerCount = navigator.hardwareConcurrency || 8;
+        const workers = [];
+        const workerCode = `
+            let currentIntensity = 0;
+            let isRunning = false;
+            const CYCLE_MS = 100; 
+
+            onmessage = function(e) {
+                currentIntensity = e.data;
+                if (currentIntensity > 0 && !isRunning) {
+                    isRunning = true;
+                    runLoop();
+                }
+            };
+
+            function runLoop() {
+                if (currentIntensity <= 0) {
+                    isRunning = false;
+                    return;
+                }
+                const start = performance.now();
+                const workDuration = currentIntensity * 8; 
+                while (performance.now() - start < workDuration) {
+                    Math.sqrt(Math.random() * Math.random());
+                }
+                const elapsed = performance.now() - start;
+                const sleepTime = Math.max(1, CYCLE_MS - elapsed);
+                setTimeout(runLoop, sleepTime);
+            }
+        `;
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        const workerUrl = URL.createObjectURL(blob);
+
+        for (let i = 0; i < workerCount; i++) {
+            workers.push(new Worker(workerUrl));
+        }
+
+        function updateCPUWorkload() {
+            intensityDisplay.innerText = intensity;
+            workers.forEach(w => w.postMessage(intensity));
+            
+            if (intensity > 0) {
+                if (!countdownInterval) startTimer();
+            } else {
+                stopTimer(true); 
+            }
+        }
+
+        function startTimer() {
+            if (countdownInterval) return;
+            countdownInterval = setInterval(() => {
+                timeLeft--;
+                renderTimer();
+                if (timeLeft <= 0) {
+                    intensity = 0;
+                    updateCPUWorkload();
+                    stopTimer(true);
+                }
+            }, 1000);
+        }
+
+        function stopTimer(reset = false) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            if (reset) {
+                timeLeft = DEFAULT_SECONDS;
+                renderTimer();
+            }
+        }
+
+        function renderTimer() {
+            const mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+            const secs = (timeLeft % 60).toString().padStart(2, '0');
+            timerDisplay.innerText = `${mins}:${secs}`;
+        }
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = width / 2 + (Math.random() - 0.5) * (width * 0.4);
+                this.y = height + Math.random() * 100;
+                this.size = Math.random() * 40 + 20;
+                this.speedY = Math.random() * 2 + 1;
+                this.speedX = (Math.random() - 0.5) * 1.5;
+                this.life = 1;
+                this.decay = Math.random() * 0.015 + 0.005;
+                this.hue = Math.random() * 35 + 5; 
+            }
+            update() {
+                const speedMult = 0.5 + (intensity * 0.15);
+                this.y -= this.speedY * speedMult;
+                this.x += this.speedX;
+                this.life -= this.decay * (1.1 - intensity / (maxIntensity + 1));
+                if (this.life <= 0) this.reset();
+            }
+            draw() {
+                if (intensity <= 0 && this.life < 0.1) return;
+                const alpha = this.life * (0.3 + (intensity * 0.07));
+                const size = Math.max(0.1, this.size * this.life);
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, size);
+                gradient.addColorStop(0, `hsla(${this.hue}, 100%, 60%, ${alpha})`);
+                gradient.addColorStop(0.5, `hsla(${this.hue - 15}, 100%, 40%, ${alpha * 0.5})`);
+                gradient.addColorStop(1, 'transparent');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function init() {
+            resize();
+            animate();
+            renderTimer();
+        }
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            particles = [];
+            for (let i = 0; i < maxParticleCount; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function changeIntensity(delta) {
+            intensity = Math.max(0, Math.min(maxIntensity, intensity + delta));
+            updateCPUWorkload();
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            const activeCount = Math.min(particles.length, 5 + (intensity * 10));
+            for (let i = 0; i < activeCount; i++) {
+                const p = particles[i];
+                p.update();
+                p.draw();
+            }
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', resize);
+        init();
+    </script>
+</body>
+</html>
