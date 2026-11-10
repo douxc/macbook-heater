@@ -3,73 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MacBook 暖手宝</title>
+    <meta name="description" content="MacBook 暖手宝：一个用 CPU 负载模拟烤火的娱乐项目，纯属好玩。">
+    <title>MacBook 暖手宝 · 娱乐项目</title>
+    <link rel="icon" href="data:,">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0a0a0a; overflow: hidden; color: #fff; font-family: sans-serif; }
-        canvas { filter: blur(4px) contrast(1.2); mix-blend-mode: screen; }
-        .controls { backdrop-filter: blur(10px); background: rgba(0,0,0,0.5); }
+        html, body { height: 100%; }
+        body {
+            background-color: #070707;
+            background-image: radial-gradient(120% 62% at 50% 106%, #1b0b04 0%, #0b0908 52%, #070707 100%);
+            color: #fff;
+            font-family: sans-serif;
+            overflow: hidden;
+        }
+        #glowCanvas, #fireCanvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        #glowCanvas { filter: blur(26px) saturate(1.2); mix-blend-mode: screen; }
+        #fireCanvas { filter: blur(0.55px) saturate(1.45) brightness(1.12) contrast(1.06); mix-blend-mode: screen; }
+        .controls {
+            backdrop-filter: blur(18px) saturate(1.05);
+            -webkit-backdrop-filter: blur(18px) saturate(1.05);
+            background: rgba(12, 7, 3, 0.74);
+            box-shadow: 0 0 90px rgba(255, 96, 22, 0.10), 0 30px 80px rgba(0, 0, 0, 0.55);
+        }
+        .fire-btn:focus-visible { outline: 2px solid #fb923c; outline-offset: 4px; }
+        @media (prefers-reduced-motion: reduce) {
+            .fire-btn { transition: none; }
+        }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen">
+<body class="flex flex-col items-center justify-center min-h-screen px-4">
 
-    <canvas id="fireCanvas" class="absolute inset-0 w-full h-full"></canvas>
+    <canvas id="glowCanvas" aria-hidden="true"></canvas>
+    <canvas id="fireCanvas" aria-hidden="true"></canvas>
 
-    <div class="controls relative z-10 p-8 rounded-3xl border border-white/10 text-center flex flex-col gap-6 shadow-2xl max-w-sm">
+    <main class="controls relative z-10 w-full max-w-sm p-8 rounded-3xl border border-white/10 text-center flex flex-col gap-6 shadow-2xl">
         <header>
             <h1 class="text-2xl font-light tracking-widest text-orange-200">MACBOOK HEATER</h1>
-            <p class="text-[11px] text-orange-100/60 mt-2 leading-relaxed text-left">
+            <p class="mt-3">
+                <span class="inline-block rounded-full border border-orange-400/35 px-3 py-1 text-[10px] tracking-[0.25em] text-orange-300/90">娱乐项目</span>
+            </p>
+            <p class="text-[11px] text-orange-100/60 mt-4 leading-relaxed text-left">
                 设计初衷：针对 MacBook Pro 及 MacBook Air 铝合金机身在冬季冰冷的触感，通过调动 CPU 负载产生热能以提升机身温度，改善使用时的“冰手”体验。
             </p>
         </header>
-        
+
         <div class="flex flex-col gap-2">
-            <span class="text-xs uppercase tracking-tighter text-gray-400">当前火力强度</span>
+            <span class="text-xs text-gray-400">当前火力强度</span>
             <div id="intensityVal" class="text-6xl font-bold font-mono text-orange-500">0</div>
         </div>
 
         <div class="flex flex-col gap-1 my-1">
-            <span class="text-[10px] uppercase tracking-widest text-gray-500">剩余燃烧时间</span>
+            <span class="text-[10px] text-gray-500">剩余燃烧时间</span>
             <div id="timerVal" class="text-xl font-mono text-gray-300">05:00</div>
         </div>
 
         <div class="flex gap-4 justify-center">
-            <button onclick="changeIntensity(-1)" class="w-16 h-16 rounded-full border border-white/20 hover:bg-white/10 transition-all flex items-center justify-center text-2xl active:scale-90">－</button>
-            <button onclick="changeIntensity(1)" class="w-16 h-16 rounded-full border border-orange-500/50 bg-orange-500/10 hover:bg-orange-500/20 transition-all flex items-center justify-center text-2xl active:scale-90 text-orange-500">＋</button>
+            <button type="button" aria-label="降低火力" onclick="changeIntensity(-1)" class="fire-btn w-16 h-16 rounded-full border border-white/20 hover:bg-white/10 transition flex items-center justify-center text-2xl active:scale-90">－</button>
+            <button type="button" aria-label="提高火力" onclick="changeIntensity(1)" class="fire-btn w-16 h-16 rounded-full border border-orange-500/50 bg-orange-500/10 hover:bg-orange-500/20 transition flex items-center justify-center text-2xl active:scale-90 text-orange-500">＋</button>
         </div>
 
         <div class="flex flex-col gap-2">
             <p class="text-[10px] text-gray-500 leading-relaxed mx-auto text-left">
                 线性负载调节已启用。建议连接电源以获得最佳加热效率。
             </p>
-            <p class="text-[10px] text-red-400/80 font-medium leading-relaxed mx-auto border-t border-white/5 pt-2">
-                注意：这本质上是一种资源浪费，请谨慎使用。
+            <p class="text-[10px] text-orange-200/70 leading-relaxed mx-auto text-left border-t border-white/5 pt-2">
+                本页面是娱乐项目：纯属好玩，请勿当真。
             </p>
         </div>
-    </div>
+    </main>
 
     <script>
+        const glowCanvas = document.getElementById('glowCanvas');
+        const glowCtx = glowCanvas.getContext('2d');
         const canvas = document.getElementById('fireCanvas');
         const ctx = canvas.getContext('2d');
         const intensityDisplay = document.getElementById('intensityVal');
         const timerDisplay = document.getElementById('timerVal');
-        
-        let width, height;
-        let intensity = 0;
-        let particles = [];
-        const maxIntensity = 10;
-        const maxParticleCount = 600; 
 
-        const DEFAULT_SECONDS = 300; 
+        let width = 0, height = 0, dpr = 1, cx = 0;
+        let intensity = 0;
+        let fireLevel = 0;
+        const maxIntensity = 10;
+        let timeSec = 0;
+        let lastTime = 0;
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        const DEFAULT_SECONDS = 300;
         let timeLeft = DEFAULT_SECONDS;
         let countdownInterval = null;
-        
+
         const workerCount = navigator.hardwareConcurrency || 8;
         const workers = [];
         const workerCode = `
             let currentIntensity = 0;
             let isRunning = false;
-            const CYCLE_MS = 100; 
+            const CYCLE_MS = 100;
 
             onmessage = function(e) {
                 currentIntensity = e.data;
@@ -85,7 +119,7 @@
                     return;
                 }
                 const start = performance.now();
-                const workDuration = currentIntensity * 8; 
+                const workDuration = currentIntensity * 8;
                 while (performance.now() - start < workDuration) {
                     Math.sqrt(Math.random() * Math.random());
                 }
@@ -104,11 +138,11 @@
         function updateCPUWorkload() {
             intensityDisplay.innerText = intensity;
             workers.forEach(w => w.postMessage(intensity));
-            
+
             if (intensity > 0) {
                 if (!countdownInterval) startTimer();
             } else {
-                stopTimer(true); 
+                stopTimer(true);
             }
         }
 
@@ -120,6 +154,7 @@
                 if (timeLeft <= 0) {
                     intensity = 0;
                     updateCPUWorkload();
+                    applyFireLevel();
                     stopTimer(true);
                 }
             }, 1000);
@@ -140,75 +175,430 @@
             timerDisplay.innerText = `${mins}:${secs}`;
         }
 
-        class Particle {
-            constructor() {
-                this.reset();
+        /* ------------------------------------------------------------------
+           Fire
+           Soft, wispy glow sprites stacked additively: a slow low body for the
+           glowing mass, faster tongues for the flames, then embers and smoke.
+           A blurred second canvas stands in for the light thrown into the room.
+        ------------------------------------------------------------------ */
+
+        function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+        function smoothstep(e0, e1, x) { const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); }
+
+        function hash2(x, y) {
+            const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+            return n - Math.floor(n);
+        }
+        function vnoise(x, y) {
+            const xi = Math.floor(x), yi = Math.floor(y);
+            const xf = x - xi, yf = y - yi;
+            const u = xf * xf * (3 - 2 * xf);
+            const v = yf * yf * (3 - 2 * yf);
+            const a = hash2(xi, yi);
+            const b = hash2(xi + 1, yi);
+            const c = hash2(xi, yi + 1);
+            const d = hash2(xi + 1, yi + 1);
+            return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;
+        }
+        function fbm(x, y) {
+            return vnoise(x, y) * 0.55 + vnoise(x * 2.13, y * 2.13) * 0.30 + vnoise(x * 4.31, y * 4.31) * 0.15;
+        }
+
+        // Radial glow with a wispy noise mask, so tongues and smoke do not
+        // look like stacked circles.
+        const SPRITE_SIZE = 128;
+        function makeFlameSprite(stops, seed) {
+            const sprite = document.createElement('canvas');
+            sprite.width = sprite.height = SPRITE_SIZE;
+            const g = sprite.getContext('2d');
+            const grad = g.createRadialGradient(SPRITE_SIZE / 2, SPRITE_SIZE / 2, 0, SPRITE_SIZE / 2, SPRITE_SIZE / 2, SPRITE_SIZE / 2);
+            for (const [pos, color] of stops) grad.addColorStop(pos, color);
+            g.fillStyle = grad;
+            g.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+
+            const img = g.getImageData(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+            const data = img.data;
+            for (let y = 0; y < SPRITE_SIZE; y++) {
+                for (let x = 0; x < SPRITE_SIZE; x++) {
+                    const nx = (x / SPRITE_SIZE) * 2 - 1;
+                    const ny = (y / SPRITE_SIZE) * 2 - 1;
+                    const r = Math.sqrt(nx * nx + ny * ny);
+                    const n = fbm(x * 0.035 + seed * 4.7, y * 0.035 - seed * 3.1);
+                    const mask = smoothstep(1.0, 0.12, r + (n - 0.5) * 0.95);
+                    const i = (y * SPRITE_SIZE + x) * 4 + 3;
+                    data[i] = data[i] * mask;
+                }
             }
-            reset() {
-                this.x = width / 2 + (Math.random() - 0.5) * (width * 0.4);
-                this.y = height + Math.random() * 100;
-                this.size = Math.random() * 40 + 20;
-                this.speedY = Math.random() * 2 + 1;
-                this.speedX = (Math.random() - 0.5) * 1.5;
-                this.life = 1;
-                this.decay = Math.random() * 0.015 + 0.005;
-                this.hue = Math.random() * 35 + 5; 
+            g.putImageData(img, 0, 0);
+            return sprite;
+        }
+
+        const flameSprites = [
+            makeFlameSprite([[0, 'rgba(255,252,238,1)'], [0.28, 'rgba(255,226,150,0.95)'], [0.55, 'rgba(255,160,50,0.5)'], [1, 'rgba(255,90,10,0)']], 0.13),
+            makeFlameSprite([[0, 'rgba(255,240,190,0.98)'], [0.30, 'rgba(255,196,96,0.9)'], [0.60, 'rgba(255,130,32,0.42)'], [1, 'rgba(255,70,8,0)']], 0.57),
+            makeFlameSprite([[0, 'rgba(255,206,130,0.95)'], [0.30, 'rgba(255,152,54,0.85)'], [0.62, 'rgba(240,96,18,0.38)'], [1, 'rgba(200,50,4,0)']], 0.91),
+            makeFlameSprite([[0, 'rgba(255,170,96,0.9)'], [0.32, 'rgba(252,120,36,0.78)'], [0.65, 'rgba(214,70,12,0.32)'], [1, 'rgba(130,26,2,0)']], 1.37)
+        ];
+
+        function makeEmberSprite() {
+            const s = 64;
+            const sprite = document.createElement('canvas');
+            sprite.width = sprite.height = s;
+            const g = sprite.getContext('2d');
+            const grad = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+            grad.addColorStop(0, 'rgba(255,250,232,1)');
+            grad.addColorStop(0.20, 'rgba(255,216,140,0.9)');
+            grad.addColorStop(0.48, 'rgba(255,132,40,0.55)');
+            grad.addColorStop(0.78, 'rgba(170,38,6,0.14)');
+            grad.addColorStop(1, 'rgba(90,14,0,0)');
+            g.fillStyle = grad;
+            g.fillRect(0, 0, s, s);
+            return sprite;
+        }
+
+        function makeSmokeSprite() {
+            const s = 128;
+            const sprite = document.createElement('canvas');
+            sprite.width = sprite.height = s;
+            const g = sprite.getContext('2d');
+            for (let i = 0; i < 6; i++) {
+                const r = s * (0.20 + Math.random() * 0.18);
+                const x = s / 2 + (Math.random() - 0.5) * s * 0.34;
+                const y = s / 2 + (Math.random() - 0.5) * s * 0.34;
+                const grad = g.createRadialGradient(x, y, 0, x, y, r);
+                grad.addColorStop(0, 'rgba(150, 128, 106, 0.28)');
+                grad.addColorStop(0.6, 'rgba(126, 108, 90, 0.10)');
+                grad.addColorStop(1, 'rgba(108, 94, 82, 0)');
+                g.fillStyle = grad;
+                g.beginPath();
+                g.arc(x, y, r, 0, Math.PI * 2);
+                g.fill();
             }
-            update() {
-                const speedMult = 0.5 + (intensity * 0.15);
-                this.y -= this.speedY * speedMult;
-                this.x += this.speedX;
-                this.life -= this.decay * (1.1 - intensity / (maxIntensity + 1));
-                if (this.life <= 0) this.reset();
+            return sprite;
+        }
+
+        const emberSprite = makeEmberSprite();
+        const smokeSprite = makeSmokeSprite();
+
+        const FLAME_POOL = 820;
+        const BODY_POOL = 280;
+        const EMBER_POOL = 120;
+        const SMOKE_POOL = 22;
+        const flames = [];
+        const body = [];
+        const embers = [];
+        const smoke = [];
+        for (let i = 0; i < FLAME_POOL; i++) flames.push({ life: 0 });
+        for (let i = 0; i < BODY_POOL; i++) body.push({ life: 0 });
+        for (let i = 0; i < EMBER_POOL; i++) embers.push({ life: 0 });
+        for (let i = 0; i < SMOKE_POOL; i++) smoke.push({ life: 0 });
+
+        let fireW = 0, fireH = 0;
+        const fuelSpots = [
+            { dx: -0.46, w: 0.06, p: 0.8 },
+            { dx: -0.35, w: 0.07, p: 1.4 },
+            { dx: -0.23, w: 0.07, p: 1.9 },
+            { dx: -0.11, w: 0.06, p: 2.4 },
+            { dx: 0.01, w: 0.07, p: 2.6 },
+            { dx: 0.13, w: 0.06, p: 2.2 },
+            { dx: 0.25, w: 0.07, p: 1.7 },
+            { dx: 0.37, w: 0.07, p: 1.2 },
+            { dx: 0.47, w: 0.06, p: 0.8 }
+        ];
+        const spotTotal = fuelSpots.reduce((a, s) => a + s.p, 0);
+
+        function updateDims() {
+            const grow = Math.pow(fireLevel, 0.5);
+            fireW = Math.min(width * 0.98, 1600) * (0.50 + 0.50 * grow);
+            fireH = Math.min(height * 0.74, 680) * grow;
+        }
+
+        function pickSpot() {
+            let r = Math.random() * spotTotal;
+            for (const s of fuelSpots) { r -= s.p; if (r <= 0) return s; }
+            return fuelSpots[fuelSpots.length - 1];
+        }
+
+        function resetFlame(p) {
+            const spot = pickSpot();
+            const sway = Math.sin(timeSec * 0.7 + spot.dx * 9) * 0.02;
+            p.x = cx + (spot.dx + sway) * fireW + (Math.random() - 0.5) * fireW * spot.w * 2.2;
+            p.y = height + 16 + Math.random() * 70;
+            p.vx = (Math.random() - 0.5) * 1.2;
+            p.vy = (1.8 + Math.random() * 2.2) * (0.55 + 0.45 * Math.pow(fireLevel, 0.5));
+            p.life = 1;
+            p.decay = 0.0052 + Math.random() * 0.0048;
+            p.size = (38 + Math.random() * 70) * (0.62 + 0.38 * Math.pow(fireLevel, 0.5));
+            p.seed = Math.random() * 100;
+            p.lean = (Math.random() - 0.5) * 0.4;
+            p.alpha = 0.16 + Math.random() * 0.14;
+            p.sprite = Math.random() < 0.22 ? 0 : (Math.random() < 0.45 ? 1 : 2);
+        }
+
+        function updateFlame(p, step) {
+            const sway =
+                Math.sin(p.y * 0.008 + timeSec * 1.7 + p.seed) * 0.12 +
+                Math.sin(p.x * 0.010 - timeSec * 1.2 + p.seed * 0.7) * 0.08;
+            p.vx += (sway + Math.sin(timeSec * 0.9 + p.y * 0.004) * 0.05) * step;
+            p.vx *= 1 - 0.02 * step;
+            p.vy += 0.015 * step;
+            p.x += p.vx * step;
+            p.y -= p.vy * step;
+            p.life -= p.decay * step;
+            if (p.life < 0) p.life = 0;
+        }
+
+        function drawFlame(p) {
+            const life = Math.max(0, p.life);
+            const bucket = life < 0.32 ? 3 : life < 0.55 ? 2 : life < 0.82 ? 1 : 0;
+            const sprite = flameSprites[bucket];
+            const alpha = p.alpha * smoothstep(0, 0.12, life) * Math.pow(life, 1.1);
+            if (alpha <= 0.004) return;
+            const grow = 0.82 + (1 - life) * 0.35;
+            const w = p.size * grow;
+            const h = w * (2.1 + (p.seed % 1) * 0.6);
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.lean + p.vx * 0.10);
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(sprite, -w / 2, -h * 0.72, w, h);
+            ctx.restore();
+        }
+
+        function resetBody(p) {
+            const spot = pickSpot();
+            p.x = cx + (spot.dx + (Math.random() - 0.5) * spot.w) * fireW;
+            p.y = height + 10 + Math.random() * 60;
+            p.vx = (Math.random() - 0.5) * 0.7;
+            p.vy = (1.1 + Math.random() * 1.4) * (0.55 + 0.45 * Math.pow(fireLevel, 0.5));
+            p.life = 1;
+            p.decay = 0.0045 + Math.random() * 0.0040;
+            p.size = (90 + Math.random() * 130) * (0.62 + 0.38 * Math.pow(fireLevel, 0.5));
+            p.seed = Math.random() * 100;
+            p.lean = (Math.random() - 0.5) * 0.3;
+            p.alpha = 0.05 + Math.random() * 0.055;
+            p.sprite = Math.random() < 0.5 ? 1 : 2;
+        }
+
+        function updateBody(p, step) {
+            const sway = Math.sin(p.y * 0.006 + timeSec * 1.4 + p.seed) * 0.07;
+            p.vx += sway * step;
+            p.vx *= 1 - 0.02 * step;
+            p.vy += 0.012 * step;
+            p.x += p.vx * step;
+            p.y -= p.vy * step;
+            p.life -= p.decay * step;
+            if (p.life < 0) p.life = 0;
+        }
+
+        function drawBody(p) {
+            const life = Math.max(0, p.life);
+            const sprite = flameSprites[p.sprite];
+            const alpha = p.alpha * smoothstep(0, 0.2, life) * (0.3 + 0.7 * life);
+            if (alpha <= 0.003) return;
+            const grow = 0.9 + (1 - life) * 0.6;
+            const w = p.size * grow;
+            const h = w * 1.7;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.lean + p.vx * 0.06);
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(sprite, -w / 2, -h * 0.66, w, h);
+            ctx.restore();
+        }
+
+        function resetEmber(p) {
+            p.x = cx + (Math.random() - 0.5) * Math.max(90, fireW) * 0.85;
+            p.y = height + 8 + Math.random() * 40;
+            p.vx = (Math.random() - 0.5) * 1.3;
+            p.vy = (1.4 + Math.random() * 3.0) * (0.55 + 0.5 * Math.pow(fireLevel, 0.5));
+            p.life = 1;
+            p.decay = 0.0026 + Math.random() * 0.0050;
+            p.size = 1.6 + Math.random() * 3.6;
+            p.seed = Math.random() * 10;
+        }
+
+        function updateEmber(p, step) {
+            p.vx += Math.sin(p.y * 0.012 + timeSec * 2.6 + p.seed * 6.0) * 0.030 * step;
+            p.vy += 0.004 * step;
+            p.vx *= 1 - 0.006 * step;
+            p.x += p.vx * step;
+            p.y -= p.vy * step;
+            p.life -= p.decay * step;
+            if (p.life < 0) p.life = 0;
+        }
+
+        function drawEmber(p) {
+            const flicker = 0.45 + 0.55 * Math.abs(Math.sin(timeSec * 9 + p.seed * 7));
+            const alpha = Math.min(1, p.life * 2.5) * flicker * 0.8;
+            if (alpha <= 0.01) return;
+            const s = p.size * 2.8;
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(emberSprite, p.x - s / 2, p.y - s / 2, s, s);
+        }
+
+        function resetSmoke(p) {
+            p.x = cx + (Math.random() - 0.5) * Math.max(120, fireW) * 0.7;
+            p.y = height - fireH * (0.75 + Math.random() * 0.25) - Math.random() * 40;
+            p.vx = (Math.random() - 0.5) * 0.5 - 0.1;
+            p.vy = -(0.4 + Math.random() * 0.9);
+            p.size = 30 + Math.random() * 90;
+            p.life = 1;
+            p.decay = 0.0018 + Math.random() * 0.0022;
+            p.rot = Math.random() * Math.PI * 2;
+            p.spin = (Math.random() - 0.5) * 0.002;
+        }
+
+        function updateSmoke(p, step) {
+            p.x += p.vx * step;
+            p.y += p.vy * step;
+            p.rot += p.spin * step;
+            p.size += 0.24 * step;
+            p.life -= p.decay * step;
+            if (p.life < 0) p.life = 0;
+        }
+
+        function drawSmoke(p) {
+            const age = 1 - p.life;
+            const alpha = Math.min(1, age * 5) * Math.min(1, p.life * 3) * 0.055;
+            if (alpha <= 0.002) return;
+            const s = p.size * (1 + age * 1.4);
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(smokeSprite, -s / 2, -s / 2, s, s);
+            ctx.restore();
+        }
+
+        function stepPool(pool, target, step, update, reset) {
+            let alive = 0;
+            for (const p of pool) {
+                if (p.life > 0) {
+                    update(p, step);
+                    if (p.life > 0) alive++;
+                    else p.life = 0;
+                }
             }
-            draw() {
-                if (intensity <= 0 && this.life < 0.1) return;
-                const alpha = this.life * (0.3 + (intensity * 0.07));
-                const size = Math.max(0.1, this.size * this.life);
-                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, size);
-                gradient.addColorStop(0, `hsla(${this.hue}, 100%, 60%, ${alpha})`);
-                gradient.addColorStop(0.5, `hsla(${this.hue - 15}, 100%, 40%, ${alpha * 0.5})`);
-                gradient.addColorStop(1, 'transparent');
-                
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
-                ctx.fill();
+            for (const p of pool) {
+                if (alive >= target) break;
+                if (p.life <= 0) {
+                    reset(p);
+                    alive++;
+                }
             }
         }
 
-        function init() {
-            resize();
-            animate();
-            renderTimer();
+        function drawGlow() {
+            glowCtx.clearRect(0, 0, width, height);
+            if (fireLevel < 0.01) return;
+            const flicker = reducedMotion
+                ? 0.95
+                : clamp(0.86 + 0.09 * Math.sin(timeSec * 7.3) + 0.05 * Math.sin(timeSec * 17.1 + 1.7) + 0.03 * Math.sin(timeSec * 29.3 + 0.4), 0.62, 1.08);
+
+            glowCtx.save();
+            glowCtx.translate(cx, height * 0.99);
+            glowCtx.scale(1, clamp((fireH / Math.max(1, fireW)) * 0.95, 0.3, 1.1));
+            const r = Math.max(240, fireW * 1.05);
+            const grad = glowCtx.createRadialGradient(0, 0, 0, 0, 0, r);
+            grad.addColorStop(0, `rgba(255, 158, 62, ${0.40 * fireLevel * flicker})`);
+            grad.addColorStop(0.40, `rgba(255, 96, 24, ${0.20 * fireLevel * flicker})`);
+            grad.addColorStop(1, 'rgba(255, 60, 10, 0)');
+            glowCtx.fillStyle = grad;
+            glowCtx.beginPath();
+            glowCtx.arc(0, 0, r, 0, Math.PI * 2);
+            glowCtx.fill();
+            glowCtx.restore();
+        }
+
+        function updateScene(step) {
+            timeSec += step / 60;
+            updateDims();
+            stepPool(body, Math.round(BODY_POOL * Math.pow(fireLevel, 1.05)), step, updateBody, resetBody);
+            stepPool(flames, Math.round(FLAME_POOL * Math.pow(fireLevel, 1.15)), step, updateFlame, resetFlame);
+            stepPool(embers, Math.round(EMBER_POOL * fireLevel), step, updateEmber, resetEmber);
+            stepPool(smoke, Math.round(SMOKE_POOL * Math.pow(fireLevel, 2.2)), step, updateSmoke, resetSmoke);
+        }
+
+        function renderScene() {
+            ctx.clearRect(0, 0, width, height);
+            ctx.globalCompositeOperation = 'lighter';
+            for (const p of body) if (p.life > 0) drawBody(p);
+            for (const p of flames) if (p.life > 0) drawFlame(p);
+            for (const p of embers) if (p.life > 0) drawEmber(p);
+            for (const p of smoke) if (p.life > 0) drawSmoke(p);
+            ctx.globalAlpha = 1;
+            ctx.globalCompositeOperation = 'source-over';
+            drawGlow();
+        }
+
+        function animate(now) {
+            if (!lastTime) lastTime = now;
+            let dt = (now - lastTime) / 1000;
+            lastTime = now;
+            dt = clamp(dt, 0, 0.05);
+            updateScene(dt * 60);
+            renderScene();
+            requestAnimationFrame(animate);
         }
 
         function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
-            particles = [];
-            for (let i = 0; i < maxParticleCount; i++) {
-                particles.push(new Particle());
+            width = window.innerWidth;
+            height = window.innerHeight;
+            dpr = Math.min(window.devicePixelRatio || 1, 1.25);
+            // The glow layer is blurred heavily, so it can be rendered at half
+            // resolution: the CSS upscale is invisible and the blur is cheaper.
+            const glowScale = 0.5;
+            glowCanvas.width = Math.round(width * glowScale);
+            glowCanvas.height = Math.round(height * glowScale);
+            glowCtx.setTransform(glowScale, 0, 0, glowScale, 0, 0);
+            canvas.width = Math.round(width * dpr);
+            canvas.height = Math.round(height * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            cx = width / 2;
+            updateDims();
+            if (reducedMotion) renderStill();
+        }
+
+        // prefers-reduced-motion: run the simulation forward once, draw a
+        // single still frame, then stop. The fire stays visible, nothing moves.
+        function renderStill() {
+            for (let i = 0; i < 200; i++) {
+                timeSec += 1 / 60;
+                updateScene(1);
+            }
+            renderScene();
+        }
+
+        function applyFireLevel() {
+            fireLevel = maxIntensity > 0 ? intensity / maxIntensity : 0;
+            updateDims();
+            if (reducedMotion) {
+                renderStill();
+            } else {
+                renderScene();
             }
         }
 
         function changeIntensity(delta) {
             intensity = Math.max(0, Math.min(maxIntensity, intensity + delta));
             updateCPUWorkload();
+            applyFireLevel();
         }
 
-        function animate() {
-            ctx.clearRect(0, 0, width, height);
-            const activeCount = Math.min(particles.length, 5 + (intensity * 10));
-            for (let i = 0; i < activeCount; i++) {
-                const p = particles[i];
-                p.update();
-                p.draw();
+        function init() {
+            resize();
+            renderTimer();
+            renderScene();
+            if (reducedMotion) {
+                renderStill();
+            } else {
+                requestAnimationFrame(animate);
             }
-            requestAnimationFrame(animate);
         }
 
         window.addEventListener('resize', resize);
+
         init();
     </script>
 </body>
